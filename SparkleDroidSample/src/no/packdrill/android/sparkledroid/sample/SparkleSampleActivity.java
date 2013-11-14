@@ -104,6 +104,24 @@ public class SparkleSampleActivity extends Activity implements ActionBar.TabList
       ft.commit();
    }
 
+   @Override
+   protected void onResume()
+   {
+      super.onResume();
+      final ActionBar actionBar = getActionBar();
+      if (actionBar.getTabCount() == 0)
+      {
+         actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS);
+         actionBar.setDisplayShowTitleEnabled(false);
+         actionBar.addTab(actionBar.newTab().setText(R.string.query_tab).setTabListener(this));
+         actionBar.addTab(actionBar.newTab().setText(R.string.results_tab).setTabListener(this));
+      }
+      //actionBar.setSelectedNavigationItem(0);
+      final FragmentTransaction ft = getFragmentManager().beginTransaction().disallowAddToBackStack();
+      onTabSelected(actionBar.getTabAt(0), ft);
+      ft.commit();
+   }
+
    @TargetApi(Build.VERSION_CODES.HONEYCOMB_MR2)
    @Override
    public void onTabSelected(ActionBar.Tab tab, FragmentTransaction ft)

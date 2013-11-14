@@ -8,7 +8,7 @@
    <string name="results_tab">Results</string>
    <string name="default_graph_autocomplete_hint">Default Graph URI or blank for none</string>
    <string name="named_graph_autocomplete_hint">Named Graph URI or blank for none.</string>
-   <string name="query_hint">Enter SPARQL query here.</string>
+   <string name="query_hint">Enter SPARQL query here or select a sample endpoint.</string>
    <string name="query_description">Description of Query</string>
    <string name="encoding_method_hint">HTTP method</string>
 </resources>

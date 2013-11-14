@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<mime>TestLib</mime>
+	<comment></comment>
+	<projects>
+		<project>SparQLClientLib</project>
+	</projects>
+	<buildSpec>
+		<buildCommand>
+			<mime>com.android.ide.eclipse.adt.ResourceManagerBuilder</mime>
+			<arguments>
+			</arguments>
+		</buildCommand>
+		<buildCommand>
+			<mime>com.android.ide.eclipse.adt.PreCompilerBuilder</mime>
+			<arguments>
+			</arguments>
+		</buildCommand>
+		<buildCommand>
+			<mime>org.eclipse.jdt.core.javabuilder</mime>
+			<arguments>
+			</arguments>
+		</buildCommand>
+		<buildCommand>
+			<mime>com.android.ide.eclipse.adt.ApkBuilder</mime>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>com.android.ide.eclipse.adt.AndroidNature</nature>
+		<nature>org.eclipse.jdt.core.javanature</nature>
+	</natures>
+</projectDescription>

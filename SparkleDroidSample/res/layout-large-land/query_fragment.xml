@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:tools="http://schemas.android.com/tools"
+              android:orientation="vertical"
+              android:layout_width="fill_parent"
+              android:layout_height="fill_parent"
+              android:weightSum="100"
+      >
+
+   <EditText
+         android:id="@+id/editTextQuery"
+         android:layout_width="match_parent"
+         android:layout_height="0dip"
+         android:inputType="textMultiLine|textFilter"
+         android:ems="10"
+         android:layout_gravity="left"
+         android:layout_weight="70"
+         android:maxHeight="0dp"
+         android:textIsSelectable="true"
+         android:hint="@string/query_hint"
+         />
+
+   <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                   xmlns:tools="http://schemas.android.com/tools"
+                   android:layout_width="match_parent"
+                   android:layout_height="0dip"
+                   android:layout_weight="30"
+         >
+
+      <AutoCompleteTextView
+            android:id="@+id/autoCompleteEndPoint"
+            android:layout_height="38sp"
+            android:layout_width="match_parent"
+            android:prompt="@string/endpoint_autocomplete_hint"
+            android:textSize="20sp"
+            android:completionThreshold="1"
+            android:dropDownHeight="220dp"
+            android:inputType="textFilter"
+            android:dropDownWidth="wrap_content"
+            android:completionHint="@string/endpoint_autocomplete_hint"
+            android:hint="@string/endpoint_autocomplete_hint"
+            />
+      
+      <EditText
+            android:id="@+id/textDefaultGraphUri"
+            android:layout_below="@id/autoCompleteEndPoint"
+            android:layout_height="38sp"
+            android:inputType="textFilter"
+            android:layout_width="match_parent"
+            android:prompt="@string/default_graph_autocomplete_hint"
+            android:contentDescription="@string/default_graph_autocomplete_hint"
+            android:textSize="20sp"
+            android:hint="@string/default_graph_autocomplete_hint"
+            />
+
+      <EditText
+            android:id="@+id/textNamedGraphUri"
+            android:layout_below="@id/textDefaultGraphUri"
+            android:layout_height="38sp"
+            android:layout_width="match_parent"
+            android:inputType="textFilter"
+            android:prompt="@string/named_graph_autocomplete_hint"
+            android:contentDescription="@string/named_graph_autocomplete_hint"
+            android:hint="@string/named_graph_autocomplete_hint"
+            android:textSize="20sp"
+            />
+      
+      <LinearLayout
+            android:layout_height="34dip"
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_below="@id/textNamedGraphUri"
+            android:weightSum="100"
+            >
+
+         <include layout="@layout/query_fragment_bottom" />
+
+      </LinearLayout>
+   </RelativeLayout>
+</LinearLayout>

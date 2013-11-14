@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+   <string name="app_name">SparkleDroid Sample</string>
+   <string name="execute_query">Execute</string>
+    <string name="encoding_spinner_hint">Web Request ACCEPT encoding</string>
+   <string name="endpoint_autocomplete_hint">SPARQL endpoint and sample endpoints</string>
+   <string name="query_tab">Query</string>
+   <string name="results_tab">Results</string>
+   <string name="default_graph_autocomplete_hint">Default Graph URI or blank for none</string>
+   <string name="named_graph_autocomplete_hint">Named Graph URI or blank for none.</string>
+   <string name="query_hint">Enter SPARQL query here.</string>
+   <string name="query_description">Description of Query</string>
+   <string name="encoding_method_hint">HTTP method</string>
+</resources>

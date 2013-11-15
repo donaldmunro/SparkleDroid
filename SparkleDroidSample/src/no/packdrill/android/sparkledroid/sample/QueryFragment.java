@@ -17,10 +17,12 @@ package no.packdrill.android.sparkledroid.sample;
 
 import android.annotation.*;
 import android.app.*;
+import android.content.*;
 import android.database.sqlite.*;
 import android.os.*;
 import android.util.*;
 import android.view.*;
+import android.view.inputmethod.*;
 import android.widget.*;
 import no.packdrill.android.sparkledroid.lib.*;
 
@@ -40,13 +42,13 @@ public class QueryFragment extends Fragment
    SparkleSampleActivity activity = null;
 
    AutoCompleteTextView autocompleteEndPoint;
-   ArrayAdapter<String> autocompleteAdapter;
+   ArrayAdapter<String> autoCompleteEndpointAdapter;
    EditText textQuery, textDefaultGraph, textNamedGraph;
 
    public QueryFragment() { }
 
    @Override
-   public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState)
+   public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle b)
    //-----------------------------------------------------------------------------------------------
    {
       View v = null;
@@ -62,18 +64,36 @@ public class QueryFragment extends Fragment
       activity = (SparkleSampleActivity) getActivity();
       textQuery = (EditText) v.findViewById(R.id.editTextQuery);
       final Button buttonExecute = (Button) v.findViewById(R.id.buttonExecute);
+      final InputMethodManager imm = (InputMethodManager) activity.getSystemService(Context.INPUT_METHOD_SERVICE);
       autocompleteEndPoint = (AutoCompleteTextView) v.findViewById(R.id.autoCompleteEndPoint);
+      imm.hideSoftInputFromWindow(autocompleteEndPoint.getWindowToken(), InputMethodManager.HIDE_IMPLICIT_ONLY);
       textDefaultGraph = (EditText) v.findViewById(R.id.textDefaultGraphUri);
       textNamedGraph = (EditText) v.findViewById(R.id.textNamedGraphUri);
       String[] endpoints = new String[SAMPLE_ENDPOINTS.keySet().size()];
       int i = 0;
       for (URI uri : SAMPLE_ENDPOINTS.keySet())
          endpoints[i++] = uri.toString();
-      autocompleteAdapter = new ArrayAdapter<String>(activity, android.R.layout.simple_dropdown_item_1line, endpoints);
-      autocompleteEndPoint.setAdapter(autocompleteAdapter);
+      autoCompleteEndpointAdapter = new ArrayAdapter<String>(activity, android.R.layout.simple_dropdown_item_1line, endpoints);
+      autocompleteEndPoint.setAdapter(autoCompleteEndpointAdapter);
       final Model model = Model.get();
+      autocompleteEndPoint.setOnClickListener(new View.OnClickListener()
+      {
+         @Override
+         public void onClick(View v)
+         {
+            if ( (autocompleteEndPoint.isEnabled() ) && (autocompleteEndPoint.getVisibility() == View.VISIBLE) )
+            {
+               if (autocompleteEndPoint.isPopupShowing())
+                  autocompleteEndPoint.dismissDropDown();
+               else
+                  autocompleteEndPoint.showDropDown();
+
+            }
+         }
+      });
+
       autocompleteEndPoint.setOnItemClickListener(new AdapterView.OnItemClickListener()
-      //=====================================================================================
+            //=====================================================================================
       {
          @Override
          public void onItemClick(AdapterView<?> parent, View view, int position, long id)
@@ -92,21 +112,11 @@ public class QueryFragment extends Fragment
 
          @Override public void onNothingSelected(AdapterView<?> parent) {  }
       });
-      autocompleteEndPoint.setOnFocusChangeListener(new View.OnFocusChangeListener()
-      {
-         @Override
-         public void onFocusChange(View v, boolean hasFocus)
-         {
-            if (hasFocus)
-               autocompleteEndPoint.showDropDown();
-            else
-               autocompleteEndPoint.dismissDropDown();
-         }
-      });
       final Spinner spinnerEncoding = (Spinner) v.findViewById(R.id.spinnerEncoding);
       spinnerEncoding.setSelection(0);
       final Spinner spinnerMethod = (Spinner) v.findViewById(R.id.spinnerMethod);
       spinnerEncoding.setSelection(0);
+
       buttonExecute.setOnClickListener(new View.OnClickListener()
       //=========================================================
       {
@@ -190,7 +200,7 @@ public class QueryFragment extends Fragment
             if (isQueryOk)
             {
                if (! SAMPLE_ENDPOINTS.containsKey(endPoint))
-                  autocompleteAdapter.add(s);
+                  autoCompleteEndpointAdapter.add(s);
                activity.resultsTab();
             }
             else
@@ -222,6 +232,44 @@ public class QueryFragment extends Fragment
       return v;
    }
 
+   @TargetApi(Build.VERSION_CODES.HONEYCOMB_MR2)
+   @Override
+   public void onViewCreated(View view, Bundle savedInstanceState)
+   //-------------------------------------------------------------
+   {
+      super.onViewCreated(view, savedInstanceState);
+      if (activity.endPoint != null)
+         autocompleteEndPoint.setText(activity.endPoint.toString());
+      if (activity.lastQuery != null)
+         textQuery.setText(activity.lastQuery);
+      if (activity.lastDefaultGraph != null)
+         textDefaultGraph.setText(activity.lastDefaultGraph);
+      if (activity.lastNamedGraph != null)
+         textNamedGraph.setText(activity.lastNamedGraph);
+      activity.lastQuery = activity.lastDefaultGraph = activity.lastNamedGraph = null;
+   }
+
+   @Override
+   public void onSaveInstanceState(Bundle b)
+   //---------------------------------------
+   {
+      super.onSaveInstanceState(b);
+      persistString(b, "query", textQuery);
+      persistString(b, "defaultGraph", textDefaultGraph);
+      persistString(b, "namedGraph", textNamedGraph);
+   }
+
+   private void persistString(Bundle b, String k, TextView tv)
+   //-----------------------------------------------
+   {
+      String s = null;
+      if ( (tv != null) && (tv.getText() != null) )
+         s = tv.getText().toString();
+      if ( (s != null) && (! s.trim().isEmpty()) )
+         b.putString(k, s);
+   }
+
+
    public static final String md5(final String s) throws NoSuchAlgorithmException
    //-----------------------------------------------------------------------------
    {
@@ -243,31 +291,6 @@ public class QueryFragment extends Fragment
    {
       {
          String sparql =
-               "PREFIX foaf: <http://xmlns.com/foaf/0.1/>\n" +
-                     "PREFIX swrc: <http://swrc.ontoware.org/ontology#>\n" +
-                     "SELECT DISTINCT $name $org $person $affiliation\n" +
-                     "WHERE {\n" +
-                     "    $person a foaf:Person .\n" +
-                     "    $person swrc:affiliation $affiliation .\n" +
-                     "    $person foaf:name $name .\n" +
-                     "    $affiliation foaf:name $org .\n" +
-                     "}" +
-                     " ORDER BY $name LIMIT 5";
-         String suri = "http://data.semanticweb.org/sparql";
-         URI uri;
-         try
-         {
-            uri = new URI(suri);
-            List<String> L = new ArrayList<String>();
-            L.add(sparql); L.add(null); L.add(null); L.add("People at semanticweb.org");
-            SAMPLE_ENDPOINTS.put(uri, L);
-         }
-         catch (URISyntaxException e)
-         {
-            Log.e(LOGTAG, suri, e);
-         }
-
-         sparql =
                "PREFIX dbo: <http://dbpedia.org/ontology/>\n" +
                      "PREFIX foaf: <http://xmlns.com/foaf/0.1/>\n" +
                      "SELECT ?man ?name ?car ?manufacturer\n" +
@@ -276,13 +299,39 @@ public class QueryFragment extends Fragment
                      "?car foaf:name ?name .\n" +
                      "?car dbo:manufacturer ?man .\n" +
                      "?man foaf:name ?manufacturer\n" +
-                     "}\nORDER by ?man ?name LIMIT 20\n";
-         suri = "http://dbpedia.org/sparql";
+                     "}\nORDER by ?man ?name LIMIT 50\n";
+         String suri = "http://dbpedia.org/sparql";
+         URI uri;
          try
          {
             uri = new URI(suri);
             List<String> L = new ArrayList<String>();
             L.add(sparql); L.add(null); L.add(null); L.add("dbpedia Luxury cars");
+            SAMPLE_ENDPOINTS.put(uri, L);
+         }
+         catch (URISyntaxException e)
+         {
+            Log.e(LOGTAG, suri, e);
+         }
+
+         sparql =
+               "PREFIX edm: <http://www.europeana.eu/schemas/edm/>\n" +
+                     "PREFIX ore: <http://www.openarchives.org/ore/terms/>\n" +
+                     "SELECT DISTINCT ?CHO ?year\n" +
+                     "WHERE {\n" +
+                     "?EuropeanaObject  edm:year  ?year ;\n" +
+                     "  edm:hasMet <http://sws.geonames.org/3017382/> . \n" +
+                     "?EuropeanaObject ore:proxyFor ?CHO.\n" +
+                     "FILTER (?year < \"1800\") \n" +
+                     "FILTER (?year > \"1700\")\n" +
+                     "}\n" +
+                     "ORDER BY asc (?year) LIMIT 50";
+         suri = "http://europeana.ontotext.com/sparql";
+         try
+         {
+            uri = new URI(suri);
+            List<String> L = new ArrayList<String>();
+            L.add(sparql); L.add(null); L.add(null); L.add("18th century Europeana objects from France");
             SAMPLE_ENDPOINTS.put(uri, L);
          }
          catch (URISyntaxException e)
@@ -321,7 +370,7 @@ public class QueryFragment extends Fragment
    private void endpointSelected(int position)
    //-----------------------------------------
    {
-      String s = autocompleteAdapter.getItem(position);
+      String s = autoCompleteEndpointAdapter.getItem(position);
       try
       {
          activity.endPoint = new URI(s);

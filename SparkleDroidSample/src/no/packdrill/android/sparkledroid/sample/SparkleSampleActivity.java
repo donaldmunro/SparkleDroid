@@ -34,13 +34,15 @@ public class SparkleSampleActivity extends Activity implements ActionBar.TabList
    ResultFragment resultFragment = null;
 
    private int activeTab = -1;
-   private ArrayList<String> saveColumns;
+   private ArrayList<String> lastColumns;
 
    URI endPoint = null;
    public URI getEndPoint() { return endPoint;  }
 
    String tableName = null;
    public String getTableName() { return tableName; }
+
+   String lastQuery = null, lastDefaultGraph = null, lastNamedGraph = null;
 
    @Override
    public void onCreate(Bundle b)
@@ -59,13 +61,16 @@ public class SparkleSampleActivity extends Activity implements ActionBar.TabList
       {
          tableName = b.getString("tableName");
          activeTab = b.getInt("activeTab");
-         saveColumns = b.getStringArrayList("columns");
+         lastColumns = b.getStringArrayList("columns");
          String suri = b.getString("endPoint");
          if ( (suri != null) && (! suri.trim().isEmpty()) )
             try { endPoint = new URI(suri); } catch (Exception _e) { endPoint = null; }
          if (activeTab >= 0)
             getActionBar().setSelectedNavigationItem(activeTab);
 //          actionBar.selectTab(actionBar.getTabAt(activeTab));
+         lastQuery = b.getString("query");
+         lastDefaultGraph = b.getString("defaultGraph");
+         lastNamedGraph = b.getString("namedGraph");
       }
    }
 
@@ -90,6 +95,7 @@ public class SparkleSampleActivity extends Activity implements ActionBar.TabList
          resultFragment.onSaveInstanceState(b);
    }
 
+
    @TargetApi(Build.VERSION_CODES.HONEYCOMB_MR2)
    @Override
    protected void onPause()
@@ -104,21 +110,17 @@ public class SparkleSampleActivity extends Activity implements ActionBar.TabList
       ft.commit();
    }
 
+   @TargetApi(Build.VERSION_CODES.HONEYCOMB_MR2)
    @Override
    protected void onResume()
+   //----------------------
    {
       super.onResume();
-      final ActionBar actionBar = getActionBar();
-      if (actionBar.getTabCount() == 0)
-      {
-         actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS);
-         actionBar.setDisplayShowTitleEnabled(false);
-         actionBar.addTab(actionBar.newTab().setText(R.string.query_tab).setTabListener(this));
-         actionBar.addTab(actionBar.newTab().setText(R.string.results_tab).setTabListener(this));
-      }
-      //actionBar.setSelectedNavigationItem(0);
       final FragmentTransaction ft = getFragmentManager().beginTransaction().disallowAddToBackStack();
-      onTabSelected(actionBar.getTabAt(0), ft);
+      if (queryFragment != null)
+         try { ft.attach(queryFragment); } catch (final Throwable e) { Log.e(LOGTAG, "", e);  }
+      if (resultFragment != null)
+         try { ft.attach(resultFragment); } catch (final Throwable e) { Log.e(LOGTAG, "", e);  }
       ft.commit();
    }
 
@@ -133,8 +135,12 @@ public class SparkleSampleActivity extends Activity implements ActionBar.TabList
          case 0:
             if (queryFragment == null)
             {
-               queryFragment = (QueryFragment) Fragment.instantiate(this, QueryFragment.class.getName());
-               queryFragment.setRetainInstance(true);
+               Bundle b = new Bundle();
+               if (endPoint != null)
+                  b.putString("endPoint", endPoint.toString());
+               if (lastQuery != null)
+                  b.putString("query", lastQuery);
+               queryFragment = (QueryFragment) Fragment.instantiate(this, QueryFragment.class.getName(), b);
                ft.add(R.id.tabContents, queryFragment, "query");
             }
             else
@@ -145,10 +151,9 @@ public class SparkleSampleActivity extends Activity implements ActionBar.TabList
             if (resultFragment == null)
             {
                Bundle b = new Bundle();
-               if (saveColumns != null)
-                  b.putStringArrayList("columns", saveColumns);
+               if (lastColumns != null)
+                  b.putStringArrayList("columns", lastColumns);
                resultFragment = (ResultFragment) Fragment.instantiate(this, ResultFragment.class.getName(), b);
-               resultFragment.setRetainInstance(true);
                ft.add(R.id.tabContents, resultFragment, "results");
                ft.show(resultFragment);
             }

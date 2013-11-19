@@ -20,6 +20,7 @@ import android.app.*;
 import android.content.*;
 import android.database.sqlite.*;
 import android.os.*;
+import android.text.*;
 import android.util.*;
 import android.view.*;
 import android.view.inputmethod.*;
@@ -37,12 +38,13 @@ public class QueryFragment extends Fragment
 {
    final static String LOGTAG = SparkleSampleActivity.class.getSimpleName();
 
-   protected final static Map<URI, List<String>> SAMPLE_ENDPOINTS = new HashMap<URI, List<String>>();
+   protected static List<URI> DEFAULT_ENDPOINTS = new ArrayList<URI>();
+   protected final static Map<String, List<String>> SAMPLE_ENDPOINTS = new HashMap<String, List<String>>();
 
    SparkleSampleActivity activity = null;
 
    AutoCompleteTextView autocompleteEndPoint;
-   ArrayAdapter<String> autoCompleteEndpointAdapter;
+   EndpointsAdapter autoCompleteEndpointAdapter;
    EditText textQuery, textDefaultGraph, textNamedGraph;
 
    public QueryFragment() { }
@@ -51,7 +53,7 @@ public class QueryFragment extends Fragment
    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle b)
    //-----------------------------------------------------------------------------------------------
    {
-      View v = null;
+      View v;
       try
       {
          v = inflater.inflate(R.layout.query_fragment, container, false);
@@ -61,6 +63,11 @@ public class QueryFragment extends Fragment
          Log.e(LOGTAG, "Expanding layout", e);
          return  null;
       }
+      if (v == null)
+      {
+         Log.e(LOGTAG, "QueryFragment: Error expanding R.layout.query_fragment");
+         return null;
+      }
       activity = (SparkleSampleActivity) getActivity();
       textQuery = (EditText) v.findViewById(R.id.editTextQuery);
       final Button buttonExecute = (Button) v.findViewById(R.id.buttonExecute);
@@ -69,11 +76,14 @@ public class QueryFragment extends Fragment
       imm.hideSoftInputFromWindow(autocompleteEndPoint.getWindowToken(), InputMethodManager.HIDE_IMPLICIT_ONLY);
       textDefaultGraph = (EditText) v.findViewById(R.id.textDefaultGraphUri);
       textNamedGraph = (EditText) v.findViewById(R.id.textNamedGraphUri);
-      String[] endpoints = new String[SAMPLE_ENDPOINTS.keySet().size()];
+      String[] endpoints = new String[SAMPLE_ENDPOINTS.keySet().size() + DEFAULT_ENDPOINTS.size()];
       int i = 0;
-      for (URI uri : SAMPLE_ENDPOINTS.keySet())
+      for (String uri : SAMPLE_ENDPOINTS.keySet())
+         endpoints[i++] = uri;
+      for (URI uri : DEFAULT_ENDPOINTS)
          endpoints[i++] = uri.toString();
-      autoCompleteEndpointAdapter = new ArrayAdapter<String>(activity, android.R.layout.simple_dropdown_item_1line, endpoints);
+      Arrays.sort(endpoints);
+      autoCompleteEndpointAdapter = new EndpointsAdapter(activity, android.R.layout.simple_dropdown_item_1line, endpoints);
       autocompleteEndPoint.setAdapter(autoCompleteEndpointAdapter);
       final Model model = Model.get();
       autocompleteEndPoint.setOnClickListener(new View.OnClickListener()
@@ -93,7 +103,7 @@ public class QueryFragment extends Fragment
       });
 
       autocompleteEndPoint.setOnItemClickListener(new AdapterView.OnItemClickListener()
-            //=====================================================================================
+      //=====================================================================================
       {
          @Override
          public void onItemClick(AdapterView<?> parent, View view, int position, long id)
@@ -103,9 +113,11 @@ public class QueryFragment extends Fragment
          }
       });
       autocompleteEndPoint.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener()
+      //=====================================================================================
       {
          @Override
          public void onItemSelected(AdapterView<?> parent, View view, int position, long id)
+         //---------------------------------------------------------------------------------
          {
             endpointSelected(position);
          }
@@ -120,12 +132,21 @@ public class QueryFragment extends Fragment
       buttonExecute.setOnClickListener(new View.OnClickListener()
       //=========================================================
       {
+         @SuppressWarnings("ResultOfMethodCallIgnored")
          @Override public void onClick(View v)
          //-----------------------------------
          {
+            if (autocompleteEndPoint.getText() == null)
+               return;
             final String s = autocompleteEndPoint.getText().toString();
-            URI endPoint = null;
-            try { endPoint = new URI(s); } catch (Exception _e) { endPoint = null; }
+            int p = s.lastIndexOf('[');
+            final String suri;
+            if (p >= 0)
+               suri = s.substring(0, p).trim();
+            else
+               suri = s;
+            URI endPoint;
+            try { endPoint = new URI(suri); } catch (Exception _e) { endPoint = null; }
             if (endPoint == null)
             {
                Toast.makeText(activity, "Invalid endpoint (not a URI).", Toast.LENGTH_LONG).show();
@@ -153,25 +174,28 @@ public class QueryFragment extends Fragment
                method = SparQLQuery.HTTP_METHOD.POST;
             else
                method = SparQLQuery.HTTP_METHOD.GET;
-            String query = textQuery.getText().toString();
+            String query = null;
+            if (textQuery.getText() != null)
+               query = textQuery.getText().toString();
             if ( (query == null) || (query.trim().isEmpty()) )
             {
                Toast.makeText(activity, "Specify a query first", Toast.LENGTH_LONG).show();
                return;
             }
-            String[] defaultGraphUris = extractUris(textDefaultGraph.getText().toString(), "default graph URIs");
+            String[] defaultGraphUris = extractUris(textDefaultGraph.getText(), "default graph URIs");
             if (defaultGraphUris == null)
                return;
-            String[] namedGraphUris = extractUris(textNamedGraph.getText().toString(), "named graph URIs");
+            String[] namedGraphUris = extractUris(textNamedGraph.getText(), "named graph URIs");
             if (namedGraphUris == null)
                return;
 
-            boolean isQueryOk = false;
+            boolean isQueryOk;
             StringBuilder errbuf = new StringBuilder();
             if (SparQLQuery.isConstruct(query))
             {
                File f = new File(activity.getExternalFilesDir(null), "construct.out");
-               f.delete();
+               if (f.exists())
+                  f.delete();
                isQueryOk = model.save(query, defaultGraphUris, namedGraphUris, endPoint, method, encoding, f, errbuf);
             }
             else
@@ -186,10 +210,7 @@ public class QueryFragment extends Fragment
                {
                   String table = "SELECT_" + queryMD5;
                   if (activity.tableName != null)
-                  {
-                     StringBuilder sql = new StringBuilder("DROP TABLE IF EXISTS ").append(activity.getTableName());
-                     db.execSQL(sql.toString());
-                  }
+                     db.execSQL("DROP TABLE IF EXISTS " + activity.getTableName());
                   activity.tableName = table;
                   isQueryOk = model.query(query, defaultGraphUris, namedGraphUris, endPoint, method, encoding,
                                           db, activity.tableName, errbuf);
@@ -199,7 +220,7 @@ public class QueryFragment extends Fragment
                isQueryOk = model.query(query, defaultGraphUris, namedGraphUris, endPoint, method, encoding, errbuf);
             if (isQueryOk)
             {
-               if (! SAMPLE_ENDPOINTS.containsKey(endPoint))
+               if (! autoCompleteEndpointAdapter.contains(s))
                   autoCompleteEndpointAdapter.add(s);
                activity.resultsTab();
             }
@@ -207,16 +228,19 @@ public class QueryFragment extends Fragment
                Toast.makeText(activity, errbuf.toString(), Toast.LENGTH_LONG).show();
          }
 
-         private String[] extractUris(final String s, final String location)
+         private String[] extractUris(final Editable ed, final String location)
          //-----------------------------------------------------------------
          {
             String[] uris = new String[0];
-            if ( (s != null) && (! s.trim().isEmpty()) )
+            if (ed == null)
+               return uris;
+            String s = ed.toString();
+            if (! s.trim().isEmpty())
             {
                uris = s.split(",");
                for (String suri : uris)
                {
-                  URI uri = null;
+                  URI uri;
                   try { uri = new URI(suri); } catch (Exception _e) { uri = null; }
                   if (uri == null)
                   {
@@ -248,7 +272,6 @@ public class QueryFragment extends Fragment
          textNamedGraph.setText(activity.lastNamedGraph);
       activity.lastQuery = activity.lastDefaultGraph = activity.lastNamedGraph = null;
    }
-
    @Override
    public void onSaveInstanceState(Bundle b)
    //---------------------------------------
@@ -270,16 +293,16 @@ public class QueryFragment extends Fragment
    }
 
 
-   public static final String md5(final String s) throws NoSuchAlgorithmException
+   public static String md5(final String s) throws NoSuchAlgorithmException
    //-----------------------------------------------------------------------------
    {
       MessageDigest digest = MessageDigest.getInstance("MD5");
       digest.update(s.getBytes());
-      byte messageDigest[] = digest.digest();
-      StringBuffer hexString = new StringBuffer();
-      for (int i = 0; i < messageDigest.length; i++)
+      byte[] messageDigest = digest.digest();
+      StringBuilder hexString = new StringBuilder();
+      for (byte b : messageDigest)
       {
-         String h = Integer.toHexString(0xFF & messageDigest[i]);
+         String h = Integer.toHexString(0xFF & b);
          while (h.length() < 2)
             h = "0" + h;
          hexString.append(h);
@@ -300,19 +323,10 @@ public class QueryFragment extends Fragment
                      "?car dbo:manufacturer ?man .\n" +
                      "?man foaf:name ?manufacturer\n" +
                      "}\nORDER by ?man ?name LIMIT 50\n";
-         String suri = "http://dbpedia.org/sparql";
-         URI uri;
-         try
-         {
-            uri = new URI(suri);
-            List<String> L = new ArrayList<String>();
-            L.add(sparql); L.add(null); L.add(null); L.add("dbpedia Luxury cars");
-            SAMPLE_ENDPOINTS.put(uri, L);
-         }
-         catch (URISyntaxException e)
-         {
-            Log.e(LOGTAG, suri, e);
-         }
+         String suri = "http://dbpedia.org/sparql [dbpedia Luxury cars]";
+         List<String> L = new ArrayList<String>();
+         L.add(sparql); L.add(null); L.add(null); L.add("dbpedia Luxury cars");
+         SAMPLE_ENDPOINTS.put(suri, L);
 
          sparql =
                "PREFIX edm: <http://www.europeana.eu/schemas/edm/>\n" +
@@ -326,18 +340,10 @@ public class QueryFragment extends Fragment
                      "FILTER (?year > \"1700\")\n" +
                      "}\n" +
                      "ORDER BY asc (?year) LIMIT 50";
-         suri = "http://europeana.ontotext.com/sparql";
-         try
-         {
-            uri = new URI(suri);
-            List<String> L = new ArrayList<String>();
-            L.add(sparql); L.add(null); L.add(null); L.add("18th century Europeana objects from France");
-            SAMPLE_ENDPOINTS.put(uri, L);
-         }
-         catch (URISyntaxException e)
-         {
-            Log.e(LOGTAG, suri, e);
-         }
+         suri = "http://europeana.ontotext.com/sparql [18th century Europeana objects from France]";
+         L = new ArrayList<String>();
+         L.add(sparql); L.add(null); L.add(null); L.add("18th century Europeana objects from France");
+         SAMPLE_ENDPOINTS.put(suri, L);
 
          sparql =
                "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n" +
@@ -352,28 +358,48 @@ public class QueryFragment extends Fragment
                      "   Filter(bif:st_intersects (?g, bif:st_point (12.372966, 51.310228), 0.1)) .\n" +
                      "}";
 //         suri = "http://linkedgeodata.org/sparql?default-graph-uri=http://linkedgeodata.org";
-         suri = "http://linkedgeodata.org/sparql";
+         suri = "http://linkedgeodata.org/sparql [All amenities 100m from Connewitz Kreuz]";
+         L = new ArrayList<String>();
+         L.add(sparql); L.add("http://linkedgeodata.org"); L.add(null); L.add("All amenities 100m from Connewitz Kreuz");
+         SAMPLE_ENDPOINTS.put(suri, L);
+
+         suri = "http://dbpedia.org/sparql";
+         URI uri;
          try
          {
             uri = new URI(suri);
-            List<String> L = new ArrayList<String>();
-            L.add(sparql); L.add("http://linkedgeodata.org"); L.add(null); L.add("All amenities 100m from Connewitz Kreuz");
-            SAMPLE_ENDPOINTS.put(uri, L);
+            DEFAULT_ENDPOINTS.add(uri);
          }
          catch (URISyntaxException e)
          {
             Log.e(LOGTAG, suri, e);
          }
-      };
+         suri = "http://europeana.ontotext.com/sparql";
+         try
+         {
+            uri = new URI(suri);
+            DEFAULT_ENDPOINTS.add(uri);
+         }
+         catch (URISyntaxException e)
+         {
+            Log.e(LOGTAG, suri, e);
+         }
+      }
    }
 
    private void endpointSelected(int position)
    //-----------------------------------------
    {
       String s = autoCompleteEndpointAdapter.getItem(position);
+      int p = s.lastIndexOf('[');
+      final String suri;
+      if (p >= 0)
+         suri = s.substring(0, p).trim();
+      else
+         suri = s;
       try
       {
-         activity.endPoint = new URI(s);
+         activity.endPoint = new URI(suri);
       }
       catch (Exception _e)
       {
@@ -381,7 +407,7 @@ public class QueryFragment extends Fragment
       }
       if (activity.endPoint != null)
       {
-         List<String> L = SAMPLE_ENDPOINTS.get(activity.endPoint);
+         List<String> L = SAMPLE_ENDPOINTS.get(s);
          if (L != null)
          {
             String sparql = L.get(0);
@@ -394,11 +420,28 @@ public class QueryFragment extends Fragment
 //               sparql = "# " + description + "\n" + sparql;
             activity.setTitle(description);
             textQuery.setText(sparql);
+            activity.endPointString = s;
          }
          else
-            textQuery.setText("ERROR: " + s + " not found");
-      } else
+            activity.endPointString = null;
+      }
+      else
          textQuery.setText("ERROR: " + s + " invalid URI");
+   }
+
+   class EndpointsAdapter extends ArrayAdapter<String>
+   //=================================================
+   {
+      Map<String, Void> contents = new HashMap<String, Void>();
+
+      EndpointsAdapter(Context context, int resource, String[] objects)
+      {
+         super(context, resource, objects);
+         for (String s : objects)
+            contents.put(s, null);
+      }
+
+      public boolean contains(String uri) { return contents.containsKey(uri);  }
    }
 
 }

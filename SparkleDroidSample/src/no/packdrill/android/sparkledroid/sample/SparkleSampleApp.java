@@ -30,15 +30,20 @@ public class SparkleSampleApp extends Application
    protected static final boolean USE_DATABASE = true;
 
    File databaseDir;
+   public File getDatabaseDir() { return databaseDir; }
 
    SQLiteDatabase database = null;
    public SQLiteDatabase getDatabase() { return database; }
+
+   File storageDirectory = null;
+   public File getStorageDirectory() { return storageDirectory; }
 
    @Override
    public void onCreate()
    //--------------------
    {
       super.onCreate();
+      storageDirectory = new File(getExternalFilesDir(null), "queries");
       if (USE_DATABASE)
       {
          databaseDir = new File(getExternalFilesDir(null), "database");

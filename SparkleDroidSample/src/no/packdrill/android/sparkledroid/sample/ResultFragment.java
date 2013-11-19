@@ -28,6 +28,8 @@ import android.widget.*;
 import java.io.*;
 import java.util.*;
 
+import static no.packdrill.android.sparkledroid.sample.SparkleSampleApp.*;
+
 @TargetApi(Build.VERSION_CODES.HONEYCOMB)
 public class ResultFragment extends Fragment implements QueryViewable
 //====================================================================
@@ -47,7 +49,7 @@ public class ResultFragment extends Fragment implements QueryViewable
    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle b)
    //------------------------------------------------------------------------------
    {
-      View v = null;
+      View v;
       try
       {
          v = inflater.inflate(R.layout.result_fragment, container, false);
@@ -56,6 +58,11 @@ public class ResultFragment extends Fragment implements QueryViewable
       {
          Log.e(LOGTAG, "Expanding layout", e);
          return  null;
+      }
+      if (v == null)
+      {
+         Log.e(LOGTAG, "ResultFragment: Error expanding R.layout.result_fragment");
+         return null;
       }
       Model.get().addView(this);
       listView = (ExpandableListView) v.findViewById(R.id.expandableListViewResults);
@@ -69,16 +76,16 @@ public class ResultFragment extends Fragment implements QueryViewable
       super.onActivityCreated(b);
       activity = (SparkleSampleActivity) getActivity();
       QueryFragment queryFragment = (QueryFragment) getFragmentManager().findFragmentByTag("query");
-      if (queryFragment != null)
+      if ( (queryFragment != null) && (activity.endPointString != null) )
       {
-         List<String> L = QueryFragment.SAMPLE_ENDPOINTS.get(activity.getEndPoint());
+         List<String> L = QueryFragment.SAMPLE_ENDPOINTS.get(activity.endPointString);
          if (L != null)
          {
             String description = L.get(3);
             if (description != null)
             {
                TextView textHeader = new TextView(activity);
-               textHeader.setText(description);;
+               textHeader.setText(description);
                listView.addHeaderView(textHeader);
             }
          }
@@ -94,9 +101,9 @@ public class ResultFragment extends Fragment implements QueryViewable
             ArrayList<String> al = b.getStringArrayList("columns");
             if (al != null)
             {
-               queryListAdapter.useDatabase = SparkleSampleApp.USE_DATABASE;
+               queryListAdapter.useDatabase = USE_DATABASE;
                queryListAdapter.columns = al;
-               if (SparkleSampleApp.USE_DATABASE)
+               if (USE_DATABASE)
                   queryListAdapter.init(al);
                else
                {
@@ -128,7 +135,7 @@ public class ResultFragment extends Fragment implements QueryViewable
 //      super.onSaveInstanceState(b);
       if (queryListAdapter != null)
          b.putStringArrayList("columns", queryListAdapter.columns);
-      if (! SparkleSampleApp.USE_DATABASE)
+      if (! USE_DATABASE)
       {
          b.putInt("rowcount", queryListAdapter.rows.size());
          int i = 0;
@@ -154,7 +161,7 @@ public class ResultFragment extends Fragment implements QueryViewable
    {
       super.onDestroy();
       if ( (cursor != null) && (! cursor.isClosed()) )
-         try { cursor.close(); } catch (Exception _e) {}
+         try { cursor.close(); } catch (Exception _e) { }
    }
 
    @Override
@@ -186,11 +193,11 @@ public class ResultFragment extends Fragment implements QueryViewable
    {
       if (queryListAdapter != null)
       {
-         if (! SparkleSampleApp.USE_DATABASE)
+         if (! USE_DATABASE)
             queryListAdapter.add(row);
          if (refreshCount++ > REFRESH_SIZE)
          {
-            if (SparkleSampleApp.USE_DATABASE)
+            if (USE_DATABASE)
                new Requery().execute(activity.getTableName());
 
             queryListAdapter.notifyDataSetChanged();
@@ -245,7 +252,7 @@ public class ResultFragment extends Fragment implements QueryViewable
    @Override public void refresh()
    //-----------------------------
    {
-      if (SparkleSampleApp.USE_DATABASE)
+      if (USE_DATABASE)
          if (activity != null)
             new Requery().execute(activity.getTableName());
       if (queryListAdapter != null)
@@ -258,7 +265,7 @@ public class ResultFragment extends Fragment implements QueryViewable
    {
       ArrayList<String> columns = new ArrayList<String>();
       List<Map<String, String>> rows = new ArrayList<Map<String, String>>();
-      boolean useDatabase = SparkleSampleApp.USE_DATABASE;
+      boolean useDatabase = USE_DATABASE;
       LruCache<Integer, Map<String, String>> dbCache = new LruCache<Integer, Map<String, String>>(200);
       String errorMessage = null;
       Throwable exception = null;
@@ -276,7 +283,7 @@ public class ResultFragment extends Fragment implements QueryViewable
       {
          this.rows.clear();
          this.columns = columns;
-         useDatabase = SparkleSampleApp.USE_DATABASE;
+         useDatabase = USE_DATABASE;
          if (useDatabase)
             new Requery().execute(activity.getTableName());
       }
